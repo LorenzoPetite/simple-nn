@@ -51,22 +51,10 @@ Net::Net(const std::vector<unsigned> topology,
 
 void Layer::init_weights(long rows, long cols, float bound)
 {
-	int bias = 1;
-	m_weights.resize(rows + bias,cols);
-	m_weights = mat_nn_t::Random(rows + bias, cols) * bound;
-}
-
-void Layer::bias_output()
-{
-	m_biased_output.resize(m_output.rows(), m_output.cols()+1);
-	m_biased_output << mat_nn_t::Ones(m_output.rows(), 1),
-						m_output;
-}
-
-void Layer::bias_diff()
-{
-	m_biased_output_diff.resize(m_output_diff.rows(), m_output_diff.cols() + 1);
-	m_biased_output_diff << mat_nn_t::Ones(m_output_diff.rows(), 1), m_output_diff;
+	m_weights.resize(rows,cols);
+	m_weights = mat_nn_t::Random(rows, cols) * bound;
+	m_bias.resize(1, cols);
+	m_bias = mat_nn_t::Random(1, cols) * bound;
 }
 
 void Layer::hyperbolic_tangent()
@@ -102,68 +90,91 @@ void Net::feedforward()
 {
 	for (unsigned i = 1; i < m_topology.size(); i++)
 	{
-		m_v_layer[i-1]->bias_output();
-		m_v_layer[i]->m_z.resize(m_v_layer[i]->m_biased_output.rows(),
-							 m_v_layer[i]->m_weights.cols());
-		m_v_layer[i]->m_z = m_v_layer[i-1]->m_biased_output
-							* m_v_layer[i-1]->m_weights;
+		m_v_layer[i]->m_z.resize(m_v_layer[i-1]->m_output.rows(),
+							 m_v_layer[i-1]->m_weights.cols());
+		auto& bias = m_v_layer[i-1]->m_bias;
+		Eigen::VectorXf vec_bias(Eigen::Map<Eigen::VectorXf>(bias.data(), bias.rows()*bias.cols()));
+		std::cout << mat_info(vec_bias) << std:: endl;
+		std::cout << mat_info(m_v_layer[i-1]->m_weights) << std::endl;
+		std::cout << mat_info(m_v_layer[i]->m_z) << std::endl;
+		std::cout << mat_info(m_v_layer[i-1]->m_output) << std::endl;
+		m_v_layer[i]->m_z = (m_v_layer[i-1]->m_output * m_v_layer[i-1]->m_weights).rowwise()
+							+ vec_bias.transpose();
 		m_v_layer[i]->activate(m_activation_function);
 	}
+}
+
+void Net::sgd()
+{
+
+	init_random_batch(60);
+
+
+	std::cout << "initialised random batch" << std::endl;
+
+	int i = 0;
+	while (i < 500)
+	{
+		std::cout << "Begin epoch: " << i << std::endl;
+		feedforward();
+		std::cout << "Completed ff" << std::endl;
+		cost();
+		class_error();
+		update_batch();
+		std::cout << "Finished epoch: " << i << std::endl;
+		++i;
+	}
+}
+
+void Net::update_batch()
+{
+	std::cout << "update_batch()" << std::endl;
+	for (auto& l : m_v_layer)
+	{
+		if (l == m_v_layer.front()) continue;
+		l->activate_diff(m_activation_function);
+	}
+	std::cout << "calculated activation differentials" << std::endl;
+
+	auto & out_l = m_v_layer.back();
+	// mean squared error derivative:
+	out_l->m_delta = out_l->m_output_diff.array()
+					* ( out_l->m_output - out_l->m_target_output ).array();
+
+	for (auto l = std::prev(m_v_layer.end(), 2); l != m_v_layer.begin(); --l)
+	{
+		(*l)->m_delta = (*l)->m_output_diff.array()
+						* ( (*(l+1))->m_delta * (*l)->m_weights.transpose() ).array();
+	}
+	backprop();
 }
 
 void Net::backprop()
 {
 	std::cout << "begin backprop" << std::endl;
-	// error vector on last layer
-	m_v_layer.back()->m_delta = m_v_layer.back()->m_output - m_v_layer.back()->m_target_output;
-
-	std::cout << mat_info(m_v_layer.back()->m_delta) << std::endl;
-
-	std::cout << "begin setting deltas" << std::endl;
-
-	for (auto layer = std::prev(m_v_layer.end(), 2);
-			layer != m_v_layer.begin();
-			--layer)
-	{
-		std::cout << std::endl << mat_info((*layer)->m_weights) << std::endl;
-		std::cout << mat_info((*(layer+1))->m_delta) <<std::endl;
-		(*layer)->activate_diff(m_activation_function);
-		std::cout << mat_info((*layer)->m_output_diff) << std::endl;
-		//std::cout << mat_info((*layer)->m_biased_output_diff) << std::endl;
-
-		//(*layer)->m_bias_delta =
-
-		(*layer)->m_delta = ( ((*(layer+1))->m_delta)
-							* ((*layer)->m_weights.bottomRows(m_weights.rows()-1)).transpose()
-							).array()
-							* (*layer)->m_output_diff.array();
-		std::cout << mat_info((*layer)->m_delta) << std::endl;
-	}
-
-	std::cout << "finished setting deltas" << std::endl;
 
 	for (auto layer = m_v_layer.begin();
 			layer != std::prev(m_v_layer.end(), 1);
 			++layer)
 	{
-		std::cout << mat_info((*layer)->m_biased_output) << std::endl;
-		std::cout << mat_info((*(layer+1))->m_delta) << std::endl;
+
 		// weights gradient
-		mat_nn_t grad = (*layer)->m_biased_output.transpose()
+		mat_nn_t nabla_w = (*layer)->m_output.transpose()
 							* (*(layer+1))->m_delta;
+		nabla_w = nabla_w / (*layer)->m_output.rows();
 
 		// bias gradient
-
+		mat_nn_t delta_nabla_b = (*(layer+1))->m_delta;
 
 		std::cout << "calculated gradient" << std::endl;
 
-		mat_nn_t stochastic_grad = (1.0/m_input.rows()) * grad;
+		//mat_nn_t nabla_w = delta_nabla_w.colwise().mean();
+		mat_nn_t nabla_b = delta_nabla_b.colwise().mean();
 
 		std::cout << "calculated weights_correction" << std::endl;
 
-		std::cout << mat_info(weights_correction) << std::endl;
-
-		(*layer)->m_weights -= m_learning_rate * stochastic_grad;
+		(*layer)->m_weights -= m_learning_rate * nabla_w;
+		(*layer)->m_bias -= m_learning_rate * nabla_b;
 	}
 
 	std::cout << "finished updating weights" << std::endl;
@@ -181,15 +192,39 @@ void Net::cost()
 		);
 }
 
+mat_nn_t Net::output_to_class()
+{
+	auto& o = m_v_layer.back()->m_output;
+	int num_rows = o.rows();
+	Eigen::VectorXf c(num_rows);
+	Eigen::MatrixXf::Index maxIndex[num_rows];
+	Eigen::VectorXf maxVal(num_rows);
+	for(int i=0; i < num_rows; ++i) {
+	    maxVal(i) = o.row(i).maxCoeff( &maxIndex[i] );
+		c(i) = maxIndex[i];
+	}
+	return c;
+}
+
 void Net::class_error()
 {
-
+	mat_nn_t classes = output_to_class();
+	int rows = classes.rows();
+	int cols = classes.cols();
+	int sum = 0;
+	for (int i = 0; i < rows; i++)
+	{
+		if ( classes.block(i, 0, 1, cols) != m_target_output.block(i, 0, 1, cols) )
+			sum++;
+	}
+	m_class_error.push_back(sum / rows);
 }
 
 void Net::plot_graphs()
 {
 	namespace plt = matplotlibcpp;
 	plt::named_plot("Training cost", m_cost);
+	plt::named_plot("Training class", m_class_error);
 	plt::xlim(0,500);
 	plt::ylim(0,1);
 	plt::xlabel("Epoch");
@@ -238,7 +273,7 @@ void Net::load_data_set(const std::string data_path)
 	}
 }
 
-void Net::load_batch(unsigned batch_size)
+void Net::init_random_batch(unsigned batch_size)
 {
 	// choose random sample of imputs
 	Eigen::PermutationMatrix<Eigen::Dynamic,Eigen::Dynamic> perm(m_input.rows());
@@ -271,17 +306,7 @@ void Net::train()
 
 	std::cout << "finished initialising weights" << std::endl;
 
-	load_batch(60);
+	sgd();
 
-	int i = 0;
-	while (i < 1)
-	{
-		feedforward();
-		cost();
-		class_error();
-		backprop();
-		++i;
-	}
-
-	//plot_graphs();
+	plot_graphs();
 }

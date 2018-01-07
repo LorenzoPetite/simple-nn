@@ -26,7 +26,7 @@ int main()
 		}
 	}
 	if (line.empty() || topology.size() < 2){
-		std::cout << "You must enter a valid topology.";
+		//std::cout << "You must enter a valid topology.";
 		topology.push_back(4);
 		topology.push_back(10);
 		topology.push_back(3);

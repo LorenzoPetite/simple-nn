@@ -17,18 +17,15 @@ struct Layer
 	long m_nxt_lyr_sz;
 	mat_nn_t m_output;
 	mat_nn_t m_target_output;
-	mat_nn_t m_biased_output;
 	mat_nn_t m_weights;
+	mat_nn_t m_bias;
 	mat_nn_t m_z;
 	mat_nn_t m_output_diff;
-	mat_nn_t m_biased_output_diff;
 	mat_nn_t m_delta;
 	void activate(int);
 	void activate_diff(int);
 	void hyperbolic_tangent();
 	void hyperbolic_tangent_diff();
-	void bias_output();
-	void bias_diff();
 	void init_weights(long, long, float);
 
 };
@@ -46,10 +43,14 @@ class Net
 		const bool m_regularization;
 		std::vector<std::unique_ptr<Layer>> m_v_layer;
 		std::vector<float> m_cost;
+		std::vector<float> m_class_error;
 		mat_nn_t m_input;
 		mat_nn_t m_target_output;
 		void gradient_descent();
 		void mean_sqrd_error();
+		void init_random_batch(unsigned);
+		void sgd();
+		void update_batch();
 		void backprop();
 		void cost();
 		void class_error();
@@ -62,11 +63,10 @@ class Net
 			float learning_rate,
 			bool regularization);
 		void feedforward();
-		void output_to_class();
+		mat_nn_t output_to_class();
 		void set_weights();
 		void load_data_set(const std::string path);
 		void train();
-		void load_batch(unsigned);
 };
 #endif
 

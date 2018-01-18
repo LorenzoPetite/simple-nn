@@ -1,0 +1,3 @@
+[submodule "thirdparty/mnist"]
+	path = thirdparty/mnist
+	url = https://github.com/wichtounet/mnist.git

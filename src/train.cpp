@@ -6,45 +6,11 @@
 
 int main()
 {
-	std::string line = "";
+	std::vector<unsigned> topology = {784, 300, 10};
 
-	// Ask user to set topology of neural network.
-	std::cout << "Set topology: " << std::endl;
-	std::cout << "\teg. <784, 2000, 10>" << std::endl;
-	std::cout << "\tfor 784 features," << std::endl;
-	std::cout << "\t10 classes," << std::endl;
-	std::cout << "\tone hidden layer with 2000 nodes." << std::endl;
-	std::vector<unsigned> topology;
-	std:: getline(std::cin, line);
-	if(!line.empty())
-	{
-		std::istringstream iss(line);
-		unsigned x;
-		while (iss >> x)
-		{
-			topology.push_back(x);
-		}
-	}
-	if (line.empty() || topology.size() < 2){
-		//std::cout << "You must enter a valid topology.";
-		topology.push_back(4);
-		topology.push_back(10);
-		topology.push_back(3);
-		//return 1;
-	}
+	int activation_function = 3;
 
-
-	// Ask user to choose activation function from list, or use default.
-	std::cout << "Which activation_function would you like (default): " << std::endl;
-	std::cout << "1: Mean squared error (default)" << std::endl;
-	int activation_function = 1;
-	std::getline(std::cin, line);
-	if (!line.empty())
-	{
-		std::istringstream iss(line);
-		iss >> activation_function;
-	}
-
+	std::string line;
 	// Ask user whether to plot graphs, or use default.
 	bool plot_graphs = 1;
 	std::cout << "Plot error graphs? (Y/n): ";
@@ -60,8 +26,8 @@ int main()
 	std::cout << std::endl;
 
 	// Ask user to set learning rate, or use default.
-	float learning_rate = 0.1;
-	std::cout << "Set learning rate (0.1): ";
+	float learning_rate = 0.06;
+	std::cout << "Set learning rate (" << learning_rate << "): ";
 	std::getline(std::cin, line);
 	if (!line.empty())
 	{

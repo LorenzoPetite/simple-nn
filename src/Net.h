@@ -19,13 +19,18 @@ struct Layer
 	mat_nn_t m_target_output;
 	mat_nn_t m_weights;
 	mat_nn_t m_bias;
+	mat_nn_t m_z_nobias;
 	mat_nn_t m_z;
 	mat_nn_t m_output_diff;
-	mat_nn_t m_delta;
+	mat_nn_t m_bias_diff;
+	mat_nn_t m_delta_w;
+	mat_nn_t m_delta_b;
 	void activate(int);
 	void activate_diff(int);
 	void hyperbolic_tangent();
 	void hyperbolic_tangent_diff();
+	void softmax();
+	void sigmoid();
 	void init_weights(long, long, float);
 
 };
@@ -48,6 +53,7 @@ class Net
 		mat_nn_t m_target_output;
 		void gradient_descent();
 		void mean_sqrd_error();
+		float cross_entropy(float, float);
 		void init_random_batch(unsigned);
 		void sgd();
 		void update_batch();
@@ -55,6 +61,8 @@ class Net
 		void cost();
 		void class_error();
 		void plot_graphs();
+		void load_mnist_data_set();
+		void load_iris_data_set(const std::string);
 
 	public:
 		Net(const std::vector<unsigned> topology,
@@ -64,8 +72,10 @@ class Net
 			bool regularization);
 		void feedforward();
 		mat_nn_t output_to_class();
+		mat_nn_t class_to_output(std::vector<uint8_t>);
+		mat_nn_t class_to_output(mat_nn_t);
 		void set_weights();
-		void load_data_set(const std::string path);
+		void load_data_set();
 		void train();
 };
 #endif

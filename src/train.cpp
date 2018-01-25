@@ -6,9 +6,9 @@
 
 int main()
 {
-	std::vector<unsigned> topology = {784, 300, 10};
+	std::vector<unsigned> topology = {784, 800, 10};
 
-	int activation_function = 3;
+	bool softmax = true;
 
 	std::string line;
 	// Ask user whether to plot graphs, or use default.
@@ -26,7 +26,7 @@ int main()
 	std::cout << std::endl;
 
 	// Ask user to set learning rate, or use default.
-	float learning_rate = 0.06;
+	float learning_rate = 0.1;
 	std::cout << "Set learning rate (" << learning_rate << "): ";
 	std::getline(std::cin, line);
 	if (!line.empty())
@@ -40,7 +40,7 @@ int main()
 	bool regularization = 0;
 
 	// Construct network
-	Net net(topology, activation_function, plot_graphs, learning_rate, regularization);
+	Net net(topology, softmax, plot_graphs, learning_rate, regularization);
 
 	net.train();
 

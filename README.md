@@ -11,15 +11,15 @@ These instructions will get you a copy of the project up and running on your loc
 You will need a compiler which supports C++17.
 
 ##### cmake >= 3.9
-For this you may need to install pip. See [here](https://packaging.python.org/guides/installing-using-linux-tools/).
+Unfortunately, many of the unix distributions do not include this version in their repositories. The easiest method to get the latest version is through pip. For this you may need to install pip. See [here](https://packagingpython.org/guides/installing-using-linux-tools/).
 Then install virtualenv, create a virtualenv and activate the virtualenv. See [here](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/).
 Finally, install cmake locally, inside the virtualenv:
 ```
 pip install cmake
 ```
-##### Python dev libraries
+##### Python dev libraries, numpy and matplotlib
 ```
-sudo apt install py-dev
+sudo apt-get install python-matplotlib python-numpy python2.7-dev
 ```
 
 ### Build

@@ -58,7 +58,7 @@ class Net
 		void mean_sqrd_error();
 		float cross_entropy(float, float);
 		void shuffle_training_data();
-		void sgd();
+		void sgd(int);
 		void update_batch();
 		void backprop();
 		float cost();

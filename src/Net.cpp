@@ -101,17 +101,9 @@ void Layer::sigmoid()
 	m_output = (1.0 / (1.0 + ((-1.0)*m_z.array()).exp()) ).matrix();
 }
 
-void Layer::hyperbolic_tangent()
-{
-	m_output.resize(m_z.rows(), m_z.cols());
-	m_output = ((m_z.array().tanh() + 1) / 2).matrix();
-}
-
 void Layer::activate(int activation_function)
 {
 	switch(activation_function) {
-		case 1: hyperbolic_tangent();
-				break;
 		case 2: softmax();
 				break;
 		case 3: sigmoid();
@@ -128,8 +120,10 @@ void Net::feedforward()
 		Eigen::VectorXf vec_bias(Eigen::Map<Eigen::VectorXf>(bias.data(), bias.rows()*bias.cols()));
 		m_v_layer[i]->m_z_nobias = (m_v_layer[i-1]->m_output * m_v_layer[i-1]->m_weights);
 		m_v_layer[i]->m_z = m_v_layer[i]->m_z_nobias.rowwise() + vec_bias.transpose();
+		int out_act_func = 3;
+		if (m_softmax) out_act_func = 2;
 		if (i == m_topology.size() - 1)
-			m_v_layer[i]->activate(2); // output layer ~> softmax
+			m_v_layer[i]->activate(out_act_func); // output layer ~> softmax
 		else
 			m_v_layer[i]->activate(3); // hidden layer ~> sigmoid
 	}
@@ -193,12 +187,12 @@ float Net::class_error()
 	return (float)sum / (float)rows;
 }
 
-void Net::sgd()
+void Net::sgd(int num_iters)
 {
 	//shuffle_training_data();
 
 	int i = 0;
-	while (i < 50)
+	while (i < num_iters)
 	{
 		std::cout << "Begin epoch: " << i+1 << std::endl;
 
@@ -218,16 +212,16 @@ void Net::sgd()
 		m_class_error.push_back( class_error() );
 
 		// weight decay
-		if (i < 2)
-			m_learning_rate = 0.0005;
-		else if ( i < 4 )
-			m_learning_rate = 0.0002;
-		else if ( i < 7 )
-			m_learning_rate = 0.0001;
-		else if ( i < 11)
-			m_learning_rate = 0.00005;
-		else
-			m_learning_rate = 0.00001;
+		/* if (i < 2) */
+		/* 	m_learning_rate = 0.0005; */
+		/* else if ( i < 4 ) */
+		/* 	m_learning_rate = 0.0002; */
+		/* else if ( i < 7 ) */
+		/* 	m_learning_rate = 0.0001; */
+		/* else if ( i < 11) */
+		/* 	m_learning_rate = 0.00005; */
+		/* else */
+		/* 	m_learning_rate = 0.00001; */
 
 		update_batch();
 		std::cout << "Finished epoch: " << i+1 << std::endl;
@@ -300,6 +294,6 @@ void Net::train()
 		m_v_layer[i]->init_weights(m_topology[i], m_topology[i+1], 0.5);
 	m_v_layer.front()->m_output = m_test_input;
 	m_v_layer.back()->m_target_output = m_test_target_output;
-	sgd();
+	sgd(50);
 	plot_graphs();
 }

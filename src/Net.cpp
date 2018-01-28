@@ -64,7 +64,6 @@ void Net::load_data_set()
 	load_mnist_data_set();
 }
 
-
 void Layer::init_weights(long rows, long cols, float bound)
 {
 	//std::srand((int)time(0));
@@ -207,8 +206,6 @@ void Layer::activate_diff(int activation_function)
 				break;
 	}
 }
-
-
 
 void Net::sgd()
 {

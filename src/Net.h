@@ -28,9 +28,6 @@ struct Layer
 	mat_f_t m_delta_w;
 	mat_f_t m_delta_b;
 	void activate(int);
-	void activate_diff(int);
-	void hyperbolic_tangent();
-	void hyperbolic_tangent_diff();
 	void softmax();
 	void sigmoid();
 	void init_weights(long, long, float);

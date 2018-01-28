@@ -193,20 +193,6 @@ float Net::class_error()
 	return (float)sum / (float)rows;
 }
 
-void Layer::hyperbolic_tangent_diff()
-{
-	m_output_diff.resize(m_z.rows(), m_z.cols());
-	m_output_diff = ((1 - (m_z).array().tanh().square()) / 2).matrix();
-}
-
-void Layer::activate_diff(int activation_function)
-{
-	switch(activation_function) {
-		case 1: hyperbolic_tangent_diff();
-				break;
-	}
-}
-
 void Net::sgd()
 {
 	//shuffle_training_data();

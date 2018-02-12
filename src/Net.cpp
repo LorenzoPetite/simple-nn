@@ -11,289 +11,309 @@
 #include <algorithm>
 #include <cmath>
 
-Net::Net(const std::vector<unsigned> topology,
-		bool softmax,
-		bool plot_graphs,
-		float learning_rate,
-		bool regularization) :
-			m_topology(topology),
-			m_softmax(softmax),
-			m_plot_graphs(plot_graphs),
-			m_learning_rate(learning_rate),
-			m_regularization(regularization)
+Net::Net(const std::vector<unsigned> topology) :
+			m_topology(topology)
 {
-
-	// Construct layers
-	for (unsigned i = 0; i < m_topology.size(); i++)
-	{
-		std::unique_ptr<Layer> l(new Layer);
-		m_v_layer.push_back(std::move(l));
-	}
-
-}
-
-void Net::load_mnist_data_set()
-{
-	// Load MNIST data
-    mnist::MNIST_dataset<std::vector, std::vector<float>, uint8_t> dataset =
-        mnist::read_dataset<std::vector, std::vector, float, uint8_t>(MNIST_DATA_LOCATION);
-
-    std::cout << "Nbr of training images = " << dataset.training_images.size() << std::endl;
-    std::cout << "Nbr of training labels = " << dataset.training_labels.size() << std::endl;
-    std::cout << "Nbr of test images = " << dataset.test_images.size() << std::endl;
-	std::cout << "Nbr of test labels = " << dataset.test_labels.size() << std::endl;
-
-	normalize_dataset(dataset);
-	m_target_output = class_to_output(dataset.training_labels);
-	m_test_target_output = class_to_output(dataset.test_labels);
-	auto& v = dataset.training_images;
-	m_input.resize(v.size(), 784);
-	for (int i = 0; i < v.size(); i++)
-		for (int j = 0; j < v[i].size(); j++)
-			m_input(i, j) = v[i][j];
-
-	auto& w = dataset.test_images;
-	m_test_input.resize(w.size(), 784);
-	for (int i = 0; i < w.size(); i++)
-		for (int j = 0; j < w[i].size(); j++)
-			m_test_input(i, j) = v[i][j];
-}
-
-void Net::load_data_set()
-{
-	load_mnist_data_set();
-}
-
-void Layer::init_weights(long rows, long cols, float bound)
-{
-	//std::srand((int)time(0));
-	m_weights.resize(rows,cols);
-	m_weights = ( mat_f_t::Random(rows, cols).array() ) * bound;
-	m_bias.resize(1, cols);
-	m_bias = mat_f_t::Random(1, cols).array() ;
-}
-
-void Net::shuffle_training_data()
-{
-	// choose random sample of imputs
-	Eigen::PermutationMatrix<Eigen::Dynamic,Eigen::Dynamic> perm(m_input.rows());
-	perm.setIdentity();
-	std::random_shuffle(perm.indices().data(), perm.indices().data()+perm.indices().size());
-	m_input = (perm * m_input);
-	m_target_output = (perm * m_target_output);
-}
-
-void Layer::softmax()
-{
-	mat_f_t t;
-	t.resizeLike(m_z);
-	t = m_z.array().exp();
-	Eigen::VectorXf t_total = t.rowwise().sum();
-	mat_f_t g;
-	m_output.resizeLike(m_z);
-	for (int i = 0; i < t_total.rows(); i++)
-		m_output.row(i) = t.row(i).array() / t_total(i);
-}
-
-void Layer::sigmoid()
-{
-	m_output.resizeLike(m_z);
-	m_output = (1.0 / (1.0 + ((-1.0)*m_z.array()).exp()) ).matrix();
-}
-
-void Layer::activate(int activation_function)
-{
-	switch(activation_function) {
-		case 2: softmax();
-				break;
-		case 3: sigmoid();
-	}
-}
-
-void Net::feedforward()
-{
-	for (unsigned i = 1; i < m_topology.size(); i++)
-	{
-		m_v_layer[i]->m_z.resize(m_v_layer[i-1]->m_output.rows(),
-							 m_v_layer[i-1]->m_weights.cols());
-		auto& bias = m_v_layer[i-1]->m_bias;
-		Eigen::VectorXf vec_bias(Eigen::Map<Eigen::VectorXf>(bias.data(), bias.rows()*bias.cols()));
-		m_v_layer[i]->m_z_nobias = (m_v_layer[i-1]->m_output * m_v_layer[i-1]->m_weights);
-		m_v_layer[i]->m_z = m_v_layer[i]->m_z_nobias.rowwise() + vec_bias.transpose();
-		int out_act_func = 3;
-		if (m_softmax) out_act_func = 2;
-		if (i == m_topology.size() - 1)
-			m_v_layer[i]->activate(out_act_func); // output layer ~> softmax
-		else
-			m_v_layer[i]->activate(3); // hidden layer ~> sigmoid
-	}
-}
-
-float Net::cross_entropy(float p, float y)
-{
-	// -( (y)ln(p) + (1-y)ln(1-p) )
-	float cel = 0;
-	if (y > 0.5)
-		cel = -log(p);
-	return cel;
-}
-
-float Net::cost()
-{
-	auto& y = m_v_layer.back()->m_target_output;
-	auto& p = m_v_layer.back()->m_output;
-	float cost = 0;
-	for (int i = 0; i < p.rows(); i ++)
-		for (int j = 0; j < p.cols(); j++)
-			cost += cross_entropy(p(i,j), y(i,j));
-	cost = cost / (float)p.rows();
-	return cost;
-}
-
-vec_i_t Net::output_to_class()
-{
-	auto& o = m_v_layer.back()->m_output;
-	int num_rows = o.rows();
-	vec_i_t c(num_rows);
-	vec_i_t::Index maxIndex[num_rows];
-	vec_f_t maxVal(num_rows);
-	for(int i=0; i < num_rows; ++i) {
-	    maxVal(i) = o.row(i).maxCoeff( &maxIndex[i] );
-		c(i) = (int)maxIndex[i];
-	}
-	return c;
 }
 
 template <class T>
 mat_f_t Net::class_to_output(T vec_class)
 {
-	mat_f_t result = mat_f_t::Zero(vec_class.size(), m_topology.back());
+	mat_f_t result = mat_f_t::Zero(m_topology.back(), vec_class.size());
 	for (int i = 0; i < vec_class.size(); i++)
-		result(i, vec_class[i]) = 1.0; // set result(i,j) = 1 (where j = class number)
+		result(vec_class[i], i) = 1.0; // set result(i,j) = 1 (where i = class number)
 	return result;
 }
 
-float Net::class_error()
+std::pair<data_t, data_t> Net::mnist_data_set()
 {
-	vec_i_t classes = output_to_class();
-	mat_f_t prediction = class_to_output(classes);
-	mat_f_t target_output = m_v_layer.back()->m_target_output;
-	int rows = prediction.rows();
-	int cols = prediction.cols();
+	// Load MNIST data
+	mnist::MNIST_dataset<std::vector, std::vector<float>, uint8_t> dataset =
+        mnist::read_dataset<std::vector, std::vector, float, uint8_t>(MNIST_DATA_LOCATION);
+	
+	mat_f_t raw_images;
+	auto& v = dataset.training_images;
+//	v = dataset.training_images;
+//	raw_images.resize(v[0].size(), v.size());
+//	for (int i = 0; i < v.size(); i++)
+//		for (int j = 0; j < v[i].size(); j++)
+//			raw_images(j, i) = v[i][j];
+//	
+//	std::cout << raw_images.array().mean() << std::endl;
+//	std::cout << raw_images.maxCoeff() << std::endl;
+
+	normalize_dataset(dataset);
+	
+	data_t training_data;
+	data_t test_data;
+	
+	training_data.second = class_to_output(dataset.training_labels);
+	test_data.second = class_to_output(dataset.test_labels);
+	
+	v = dataset.training_images;
+	training_data.first.resize(v[0].size(), v.size());
+	for (int i = 0; i < v.size(); i++)
+		for (int j = 0; j < v[i].size(); j++)
+			training_data.first(j, i) = v[i][j];
+	
+	std::cout << training_data.first.array().mean() << std::endl;
+	std::cout << training_data.first.maxCoeff() << std::endl;
+
+
+	v = dataset.test_images;
+	test_data.first.resize(v[0].size(), v.size());
+	for (int i = 0; i < v.size(); i++)
+		for (int j = 0; j < v[i].size(); j++)
+			test_data.first(j, i) = v[i][j];
+	std::pair<data_t, data_t> mnist_dataset (training_data, test_data);
+	return mnist_dataset;
+	
+}
+
+param_t Net::init_params(long rows, long cols, float bound)
+{
+	//std::srand((int)time(0));
+	//std::srand(0);
+	mat_f_t weights(rows, cols);
+	weights = ( mat_f_t::Random(rows, cols).array() ) * bound;
+	mat_f_t bias(1, cols);
+	bias = mat_f_t::Random(rows, 1).array();
+	param_t params (weights, bias);
+	return params;
+}
+
+data_t Net::shuffle_training_data(data_t data)
+{
+	int num_samples = data.first.cols();
+	// choose random sample of imputs
+	Eigen::PermutationMatrix<Eigen::Dynamic,Eigen::Dynamic> perm(num_samples);
+	perm.setIdentity();
+	std::random_shuffle(perm.indices().data(), perm.indices().data()+perm.indices().size());
+	data_t res;
+	res.first = (data.first * perm);
+	res.second = (data.second * perm);
+	return res;
+}
+
+mat_f_t Net::sigmoid(mat_f_t z)
+{
+	return (1.0 / (1.0 + ((-1.0)*z.array()).exp()) ).matrix();
+}
+
+mat_f_t Net::sigmoid_prime(mat_f_t z)
+{
+    mat_f_t sp;
+    mat_f_t x = sigmoid(z);
+    sp = x.array()*(1-x.array());
+    return sp;
+}
+
+mat_f_t Net::rowwise_sum(mat_f_t mat, mat_f_t mat_vec)
+{
+	Eigen::VectorXf vec(Eigen::Map<Eigen::VectorXf>(mat_vec.data(), mat_vec.rows()*mat_vec.cols()));
+	return mat.rowwise() + vec.transpose();
+}
+
+mat_f_t Net::colwise_sum(mat_f_t mat, mat_f_t mat_vec)
+{
+	Eigen::VectorXf vec(Eigen::Map<Eigen::VectorXf>(mat_vec.data(), mat_vec.rows()*mat_vec.cols()));
+	return mat.colwise() + vec;
+}
+
+mat_f_t Net::feedforward(mat_f_t activation)
+{
+	for (unsigned i = 0; i < m_params.size(); i++)
+	{
+		auto weights = m_params[i].first;
+		auto bias = m_params[i].second;
+		auto z_nobias = weights * activation;
+		auto z = colwise_sum( z_nobias,  bias);
+		activation = sigmoid(z);
+	}
+	return activation;
+}
+
+float Net::cost(mat_f_t target_output, mat_f_t output)
+{
+	return (float)((target_output - output).array().square().sum()) / (float)output.cols();
+}
+
+mat_f_t Net::cost_derivative(mat_f_t target_output, mat_f_t output)
+{
+	return target_output - output;
+}
+
+// finds max coeff in each column and returns row vector of their positions
+vec_i_t Net::output_to_class(mat_f_t o)
+{
+	// o size = (num_classes x num_samples)
+	int num_samples = o.cols();
+	vec_i_t c(num_samples);
+	vec_i_t::Index maxIndex[num_samples];
+	vec_f_t maxVal(num_samples);
+	for(int i=0; i < num_samples; ++i) {
+		maxVal(i) = o.col(i).maxCoeff( &maxIndex[i] );
+		c(i) = (int)maxIndex[i];
+	}
+	return c;
+}
+
+float Net::class_error(vec_i_t actual_classes, vec_i_t predicted_classes)
+{	
+	int rows = predicted_classes.rows(); int cols = predicted_classes.cols();
 	int sum = 0;
+	// compares column by column
 	for (int i = 0; i < rows; i++)
-		if ( prediction.block(i, 0, 1, cols) != target_output.block(i, 0, 1, cols) )
+		if ( predicted_classes.row(i) != actual_classes.row(i) )
 			sum++;
 	return (float)sum / (float)rows;
 }
 
-void Net::sgd(int num_iters)
+nabla_t Net::backprop(data_t data)
 {
-	//shuffle_training_data();
+	//std::cout << "***** backprop *****" << std::endl;
+	std::vector<mat_f_t> nabla_w;
+	std::vector<mat_f_t> nabla_b;
+	int num_layers = m_params.size() + 1;
+	for (int i = 0; i < num_layers - 1; i++)
+	{
+		auto& weights = m_params[i].first;
+		auto& bias = m_params[i].second;
+		nabla_w.push_back(mat_f_t::Zero(weights.rows(), weights.cols()));
+		nabla_b.push_back(mat_f_t::Zero(bias.rows(), bias.cols()));
+	}
+	mat_f_t activation = data.first;
+	std::vector<mat_f_t> activations;
+	activations.push_back(activation);
+	std::vector<mat_f_t> vec_z;
+	for (int i = 0; i < num_layers - 1; i++)
+	{
+		auto& weights = m_params[i].first;
+		auto& bias = m_params[i].second;
+		mat_f_t z = colwise_sum((weights * activation), bias);
+		vec_z.push_back(z);
+		activation = sigmoid(z);
+		activations.push_back(activation);
+	}
+	mat_f_t delta;
+	delta.resizeLike(vec_z.back());
+	delta = cost_derivative(data.second, activations.back()).array() * sigmoid_prime(vec_z.back()).array();
+	nabla_b.back() = delta;
+	nabla_w.back() = delta * activations[activations.size() - 2].transpose();
+	for (int i = num_layers - 3; i >= 0; i--)
+ 	{
+		//std::cout << "  *** layer " << i << " ***  \n";
+		auto& weights = m_params[i+1].first;
+		mat_f_t z = vec_z[i];
+		mat_f_t sp = sigmoid_prime(z);
+		mat_f_t delta_temp = (weights.transpose() * delta).array() * sp.array();
+		delta = delta_temp;
+		nabla_w[i] = delta * activations[i].transpose();
+		nabla_b[i] = delta;
+		//std::cout << "  *** end of layer " << i << " ***  \n";
+	}
+	nabla_t nablas (nabla_w, nabla_b);
+	//std::cout << "***** end of backprop *****" << std::endl;
+	return nablas;
+}
 
+void Net::update_mini_batch(data_t mini_batch, double eta)
+{
+	//std::cout << "****** update_mini_batch ******" << std::endl;
+	int num_layers = m_params.size() + 1;
+	int batch_size = mini_batch.first.cols();
+	
+	std::vector<mat_f_t> nabla_w;
+	std::vector<mat_f_t> nabla_b;
+	for (int i = 0; i < num_layers - 1; i++)
+	{
+		auto& weights = m_params[i].first;
+		auto& bias = m_params[i].second;
+		nabla_w.push_back(mat_f_t::Zero(weights.rows(), weights.cols()));
+		nabla_b.push_back(mat_f_t::Zero(bias.rows(), bias.cols()));
+	}
+	
+	for (int i = 0; i < batch_size; i++)
+	{
+		data_t mini_batch_i (mini_batch.first.col(i), mini_batch.second.col(i));
+		nabla_t delta_nablas = backprop(mini_batch_i);
+		for (int j = 0; j < num_layers - 1; j++)
+		{
+			//std::cout << "   **** layer: " << j << " ****" << std::endl;
+			mat_f_t delta_nabla_w = delta_nablas.first[j];
+			mat_f_t delta_nabla_b = delta_nablas.second[j];
+			nabla_w[j] += delta_nabla_w;
+			nabla_b[j] += delta_nabla_b;
+			//std::cout << "   **** end of layer: " << j << " ****" << std::endl;
+		}
+	}
+	
+	for (int i = 0; i < num_layers - 1; i++)
+	{
+		std::cout << "*** layer: " << i << " ***" << std::endl;
+		//std::cout << nabla_w[i].array().mean() << std::endl;
+		m_params[i].first = m_params[i].first.array() - ( eta / (float)batch_size ) * nabla_w[i].array();
+		m_params[i].second = m_params[i].second.array() - ( eta / (float)batch_size ) * nabla_b[i].array();
+//		std::cout << "*** end of layer: " << i << " ***" << std::endl;
+//		std::cout << std::endl;
+	}
+	//std::cout << "****** end of update_mini_batch ******" << std::endl;
+
+}
+
+void Net::sgd(data_t training_data, data_t test_data, int num_iters, int batch_size, double eta)
+{
+	std::vector<float> error;
+	std::vector<float> cost_vec;
+	
 	int i = 0;
 	while (i < num_iters)
 	{
 		std::cout << "Begin epoch: " << i+1 << std::endl;
-
-		m_v_layer.front()->m_output = m_test_input.topRows(100);
-		m_v_layer.back()->m_target_output = m_test_target_output.topRows(100);
-		feedforward();
-		m_test_cost.push_back( cost() );
-		m_test_class_error.push_back( class_error() );
-
-		int btch_sz = 32;
-		// place sample inputs into output of input layer
-		m_v_layer.front()->m_output = m_input.block( (i*btch_sz) % m_input.rows(), 0, btch_sz, m_input.cols() );
-		//place sample outputs into target_output vector of output layer
-		m_v_layer.back()->m_target_output = m_target_output.block( (i*btch_sz) % m_target_output.rows(), 0, btch_sz, m_target_output.cols() );
-		feedforward();
-		m_cost.push_back( cost() );
-		m_class_error.push_back( class_error() );
-
-		// weight decay
-		/* if (i < 2) */
-		/* 	m_learning_rate = 0.0005; */
-		/* else if ( i < 4 ) */
-		/* 	m_learning_rate = 0.0002; */
-		/* else if ( i < 7 ) */
-		/* 	m_learning_rate = 0.0001; */
-		/* else if ( i < 11) */
-		/* 	m_learning_rate = 0.00005; */
-		/* else */
-		/* 	m_learning_rate = 0.00001; */
-
-		update_batch();
-		std::cout << "Finished epoch: " << i+1 << std::endl;
+		
+		training_data = shuffle_training_data(training_data);
+		
+		auto& input = training_data.first;
+		auto& target_output = training_data.second;
+		int num_samples = input.cols();
+		
+		float err;
+		float cos;
+		
+		for (int j = 0; j < ( num_samples - batch_size ); j += batch_size)
+		{	
+			auto x = input.block( 0, j, input.rows(), batch_size );
+			auto y = target_output.block( 0, j, target_output.rows(), batch_size );
+			data_t mini_batch (x, y);
+			update_mini_batch(mini_batch, eta);
+			mat_f_t prediction = feedforward(x);
+			vec_i_t predicted_classes = output_to_class(prediction);
+			vec_i_t actual_classes = output_to_class(y);
+			cos = cost(y, prediction);
+			cost_vec.push_back(cos);
+			err = class_error(actual_classes, predicted_classes);
+			error.push_back(err);
+			std::cout << "Finished batch: " << j+1 << " acc: " << (float)err << " cost: " << (float)cos << std::endl;
+		}
+				
+		
+		
+		std::cout << "Finished epoch: " << i+1 << " acc: " << (float)err << " cost: " << (float)cos << std::endl;
 		++i;
 	}
 }
 
-void Net::update_batch()
-{
-	auto & out_l = m_v_layer.back();
-	out_l->m_delta_w.resizeLike(out_l->m_output);
-	out_l->m_delta_w = ( out_l->m_output.array() - out_l->m_target_output.array() ).matrix();
-
-	for (auto l = std::prev(m_v_layer.end(), 2); l != m_v_layer.begin(); --l)
-	{
-		mat_f_t weighted_error;
-		weighted_error.resize((*(l+1))->m_delta_w.rows(), (*l)->m_weights.rows());
-		weighted_error = ( (*(l+1))->m_delta_w * (*l)->m_weights.transpose() ).array();
-		mat_f_t sigmoid_diff;
-		sigmoid_diff.resizeLike((*l)->m_output);
-		sigmoid_diff = ( (*l)->m_output.array() * ( 1.0 - (*l)->m_output.array() ) );
-		mat_f_t res;
-		res.resizeLike(weighted_error);
-		res = weighted_error.array() * sigmoid_diff.array();
-		(*l)->m_delta_w = res;
-	}
-	backprop();
-}
-
-void Net::backprop()
-{
-	for (auto l = m_v_layer.begin(); // first layer
-			  l != std::prev(m_v_layer.end(), 1); // second to last lyr (i.e. not incl output lyr)
-			  ++l)
-	{
-		// weights gradient
-		mat_f_t nabla_w =
-			( (*l)->m_output.transpose() ) * (*(l+1))->m_delta_w;
-		nabla_w = nabla_w / (*l)->m_output.rows(); // divide by batch size
-
-		// bias gradient
-		mat_f_t delta_nabla_b = (*(l+1))->m_delta_w;
-
-		mat_f_t nabla_b = delta_nabla_b.colwise().mean();
-
-		(*l)->m_weights -= m_learning_rate * nabla_w;
-		(*l)->m_bias -= m_learning_rate * nabla_b;
-	}
-}
-
-void Net::plot_graphs()
+void Net::plot_graphs(std::map<std::string, std::vector<float>> cost_data)
 {
 	namespace plt = matplotlibcpp;
-	plt::named_plot("Training cost", m_cost);
-	plt::named_plot("Test cost", m_test_cost);
-	plt::named_plot("Training class", m_class_error);
-	plt::named_plot("Test class", m_test_class_error);
-	plt::xlim(0, (int)m_cost.size());
+	for (auto& cost_pair : cost_data)
+	{
+		plt::named_plot(cost_pair.first, cost_pair.second);
+	}
+	plt::xlim(0, 150);
 	plt::ylim(0,5);
 	plt::xlabel("Epoch");
 	plt::ylabel("Error");
 	plt::legend();
 	plt::show();
-}
-
-void Net::train()
-{
-	load_data_set();
-	for (unsigned i = 0; i < m_topology.size() - 1; i++)
-		m_v_layer[i]->init_weights(m_topology[i], m_topology[i+1], 0.5);
-	m_v_layer.front()->m_output = m_test_input;
-	m_v_layer.back()->m_target_output = m_test_target_output;
-	sgd(50);
-	plot_graphs();
 }

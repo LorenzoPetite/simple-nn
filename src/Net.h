@@ -6,80 +6,50 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <map>
 
 typedef Eigen::MatrixXf mat_f_t;
 typedef Eigen::VectorXf vec_f_t;
 typedef Eigen::VectorXi	vec_i_t;
-
-// ****************  Layer *****
-//
-struct Layer
-{
-	long m_lyr_sz;
-	long m_nxt_lyr_sz;
-	mat_f_t m_output;
-	mat_f_t m_target_output;
-	mat_f_t m_weights;
-	mat_f_t m_bias;
-	mat_f_t m_z_nobias;
-	mat_f_t m_z;
-	mat_f_t m_output_diff;
-	mat_f_t m_bias_diff;
-	mat_f_t m_delta_w;
-	mat_f_t m_delta_b;
-	void activate(int);
-	void softmax();
-	void sigmoid();
-	void init_weights(long, long, float);
-
-};
-
+typedef std::pair<mat_f_t, mat_f_t> data_t;
+typedef data_t param_t;
+typedef std::pair<std::vector<mat_f_t>, std::vector<mat_f_t>> nabla_t;
 
 // **************** class Net ****************
 //
 class Net
 {
-	private:
-		const std::vector<unsigned> m_topology;
-		const bool m_softmax;
-		const bool m_plot_graphs;
-		float m_learning_rate;
-		const bool m_regularization;
-		std::vector<std::unique_ptr<Layer>> m_v_layer;
-		std::vector<float> m_cost;
-		std::vector<float> m_test_cost;
-		std::vector<float> m_test_class_error;
-		std::vector<float> m_class_error;
-		mat_f_t m_input;
-		mat_f_t m_target_output;
-		mat_f_t m_test_input;
-		mat_f_t m_test_target_output;
-		void gradient_descent();
-		void mean_sqrd_error();
-		float cross_entropy(float, float);
-		void shuffle_training_data();
-		void sgd(int);
-		void update_batch();
-		void backprop();
-		float cost();
-		float class_error();
-		void plot_graphs();
-		void load_mnist_data_set();
-		void load_iris_data_set(const std::string);
-
 	public:
-		Net(const std::vector<unsigned> topology,
-			bool softmax,
-			bool plot_graphs,
-			float learning_rate,
-			bool regularization);
-		void feedforward();
-		vec_i_t output_to_class();
+                Net(const std::vector<unsigned> topology);
+		const std::vector<unsigned> m_topology;
+                std::vector<param_t> m_params;
+                
+                std::pair<data_t, data_t> mnist_data_set();
+                mat_f_t sigmoid(mat_f_t);
+                mat_f_t rowwise_sum(mat_f_t, mat_f_t);
+                mat_f_t colwise_sum(mat_f_t, mat_f_t);
+                mat_f_t feedforward(mat_f_t);
+                vec_i_t output_to_class();
 		template<class T> mat_f_t class_to_output(T);
-		void set_weights();
-		void load_data_set();
+                //void set_weights();
 		void train();
+                
+                param_t init_params(long, long, float);
+                data_t shuffle_training_data(data_t);
+		float cross_entropy(float, float);
+                mat_f_t sigmoid_prime(mat_f_t);
+                mat_f_t cost_derivative(mat_f_t, mat_f_t);
+		float class_error();
+		void plot_graphs(std::map<std::string, std::vector<float>>);
+		void sgd(data_t, data_t, int, int, double);
+                vec_i_t output_to_class(mat_f_t);
+                float class_error(vec_i_t, vec_i_t);
+                nabla_t backprop(data_t);
+		void update_mini_batch(data_t, double);
+		float cost(mat_f_t, mat_f_t);
 };
+
+
 
 
 // Helper functions

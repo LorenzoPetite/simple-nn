@@ -31,24 +31,6 @@ cmake ..
 make
 ```
 
-### Configure the network
-Most configuration options are set in the train.cpp, upon instantantion of the Net class in train.cpp, which has fingerprint:
-```
-Net(const std::vector<unsigned> topology,
-		bool softmax,
-		bool plot_graphs,
-		float learning_rate,
-		bool regularization);
-```
+### Construct, configure and train the network
 
-The number of epochs of stochastic gradient descent is set as a parameter of the `Net:sgd(int num_iters)` function, called in `Net::train`.
-
-
-
-### Train the network
-
-To train the neural network just run:
-
-```
-./train
-```
+An example is given in train.cpp file.

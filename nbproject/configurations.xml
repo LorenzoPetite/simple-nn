@@ -45,9 +45,8 @@
                  commonFlags="-mtune=generic -march=x86-64 -fPIC -fstack-protector-strong"/>
         <element flagsID="1"
                  commonFlags="-mtune=generic -march=x86-64 -fstack-protector-strong"/>
-        <element flagsID="2"
-                 commonFlags="-mtune=generic -march=x86-64 -std=gnu++1z -fstack-protector-strong"/>
-        <element flagsID="3" commonFlags="-std=c++14"/>
+        <element flagsID="2" commonFlags="-std=c++14"/>
+        <element flagsID="3" commonFlags="-std=gnu++1z"/>
       </flagsDictionary>
       <codeAssistance>
       </codeAssistance>
@@ -140,7 +139,7 @@
         </ccTool>
       </item>
       <item path="src/newfile.cpp" ex="false" tool="1" flavor2="11">
-        <ccTool flags="3">
+        <ccTool flags="2">
           <incDir>
             <pElem>/usr/local/include/eigen</pElem>
             <pElem>thirdparty/matploplibcpp</pElem>
@@ -153,25 +152,17 @@
         </ccTool>
       </item>
       <item path="src/train.cpp" ex="false" tool="1" flavor2="11">
-        <ccTool flags="2">
+        <ccTool flags="3">
           <incDir>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/util</pElem>
-            <pElem>src</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core</pElem>
-            <pElem>/usr/local/include/eigen/Eigen</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/arch/SSE</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/arch/CUDA</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/products</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/SVD</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Geometry</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/plugins</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/LU</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Cholesky</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/QR</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Householder</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Eigenvalues</pElem>
+            <pElem>/usr/local/include/eigen</pElem>
+            <pElem>thirdparty/matploplibcpp</pElem>
+            <pElem>/usr/include/python2.7</pElem>
+            <pElem>thirdparty/mnist/include</pElem>
             <pElem>build</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>MNIST_DATA_LOCATION="/home/laurence/university/programmingI/final_assignment/oo_neural_net/thirdparty/mnist"</Elem>
+          </preprocessorList>
         </ccTool>
       </item>
       <item path="test/Net_test.cpp" ex="false" tool="1" flavor2="11">

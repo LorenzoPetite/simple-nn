@@ -16,7 +16,13 @@ int main()
 	
 	auto params = net.init_params();
 	
-	sgd_t sgd_res = net.sgd(data.first, data.second, 10, 128, 0.5);
+	auto& training_data = data.first;
+	auto& test_data = data.second;
+	int epochs = 10;
+	int batch_size = 128;
+	double learning_rate = 0.5;
+	
+	sgd_t sgd_res = net.sgd(training_data, test_data, epochs, batch_size, learning_rate);
 	
 	net.plot_graphs(sgd_res.report);
 	

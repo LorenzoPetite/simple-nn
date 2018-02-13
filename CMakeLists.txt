@@ -28,6 +28,7 @@ find_package(MNIST REQUIRED)
     message(FATAL_ERROR "MNIST loader could not be found. It is available under https://github.com/wichtounet/mnist")
 else()
 	message(STATUS "MNIST_DATA_DIR: " ${MNIST_DATA_DIR})
+message(STATUS "MNIST_INCLUDE_DIR: " ${MNIST_INCLUDE_DIR})
 endif(NOT MNIST_FOUND)
 include_directories(${MNIST_INCLUDE_DIR})
 target_compile_definitions(train PRIVATE MNIST_DATA_LOCATION="${MNIST_DATA_DIR}")
@@ -41,6 +42,7 @@ set(CMAKE_BUILD_TYPE Debug)
 #endforeach()
 
 add_subdirectory(src)
+#add_subdirectory(test)
 
 target_link_libraries(train Net ${PYTHON_LIBRARIES})
 

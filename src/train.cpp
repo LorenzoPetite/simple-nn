@@ -6,18 +6,27 @@
 
 int main()
 {
+	std::srand(0);
+	
 	std::vector<unsigned> topology = {784, 25, 10};
 	
-	// Construct network
 	Net net(topology);
 	
-	std::srand(0);
 	auto data = net.mnist_data_set();
-	for (unsigned i = 0; i < net.m_topology.size() - 1; i++)
-		net.m_params.push_back( net.init_params(net.m_topology[i + 1], net.m_topology[i], 0.1) );
-	//auto output = feedforward(data.first.first.topRows(100));
-	//std::cout << output << std::endl;
-	net.sgd(data.first, data.second, 100, 128, 0.5);
-
+	
+	auto params = net.init_params();
+	
+	sgd_t sgd_res = net.sgd(data.first, data.second, 10, 128, 0.5);
+	
+	net.plot_graphs(sgd_res.report);
+	
+//	report_t& report = sgd_res.report;
+//	for (report_t::iterator itr = report.begin(); itr != report.end(); ++itr)	
+//		ofstream report_file(itr->first);
+//		int size = itr->second.size();
+//		for (int i = 0; i < size; i++)
+//		    report_file << itr->second[i] << "\n";
+//	}
+	
 	return 0;
 }

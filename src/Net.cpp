@@ -70,7 +70,7 @@ std::pair<data_t, data_t> Net::mnist_data_set()
 	
 }
 
-param_t Net::init_params(long rows, long cols, float bound)
+lyr_param_t Net::init_lyr_params(long rows, long cols, float bound)
 {
 	//std::srand((int)time(0));
 	//std::srand(0);
@@ -78,8 +78,14 @@ param_t Net::init_params(long rows, long cols, float bound)
 	weights = ( mat_f_t::Random(rows, cols).array() ) * bound;
 	mat_f_t bias(1, cols);
 	bias = mat_f_t::Random(rows, 1).array();
-	param_t params (weights, bias);
-	return params;
+	return {weights, bias};
+}
+
+param_t Net::init_params()
+{
+	for (unsigned i = 0; i < m_topology.size() - 1; i++)
+		m_params.push_back( init_lyr_params(m_topology[i + 1], m_topology[i], 0.1) );
+	return m_params;
 }
 
 data_t Net::shuffle_training_data(data_t data)
@@ -124,8 +130,8 @@ mat_f_t Net::feedforward(mat_f_t activation)
 {
 	for (unsigned i = 0; i < m_params.size(); i++)
 	{
-		auto weights = m_params[i].first;
-		auto bias = m_params[i].second;
+		auto weights = m_params[i].weights;
+		auto bias = m_params[i].bias;
 		auto z_nobias = weights * activation;
 		auto z = colwise_sum( z_nobias,  bias);
 		activation = sigmoid(z);
@@ -140,7 +146,7 @@ float Net::cost(mat_f_t target_output, mat_f_t output)
 
 mat_f_t Net::cost_derivative(mat_f_t target_output, mat_f_t output)
 {
-	return target_output - output;
+	return output - target_output;
 }
 
 // finds max coeff in each column and returns row vector of their positions
@@ -169,6 +175,19 @@ float Net::class_error(vec_i_t actual_classes, vec_i_t predicted_classes)
 	return (float)sum / (float)rows;
 }
 
+eval_t Net::evaluate(data_t data)
+{
+	auto& x = data.first;
+	auto& y = data.second;
+	mat_f_t prediction = feedforward(x);
+	vec_i_t predicted_classes = output_to_class(prediction);
+	vec_i_t actual_classes = output_to_class(y);
+	float cos = cost(y, prediction);
+	float err = class_error(actual_classes, predicted_classes);
+	float acc = (1.0 - err) * 100;
+	return {cos, acc};
+}
+
 nabla_t Net::backprop(data_t data)
 {
 	//std::cout << "***** backprop *****" << std::endl;
@@ -177,8 +196,8 @@ nabla_t Net::backprop(data_t data)
 	int num_layers = m_params.size() + 1;
 	for (int i = 0; i < num_layers - 1; i++)
 	{
-		auto& weights = m_params[i].first;
-		auto& bias = m_params[i].second;
+		auto& weights = m_params[i].weights;
+		auto& bias = m_params[i].bias;
 		nabla_w.push_back(mat_f_t::Zero(weights.rows(), weights.cols()));
 		nabla_b.push_back(mat_f_t::Zero(bias.rows(), bias.cols()));
 	}
@@ -188,8 +207,8 @@ nabla_t Net::backprop(data_t data)
 	std::vector<mat_f_t> vec_z;
 	for (int i = 0; i < num_layers - 1; i++)
 	{
-		auto& weights = m_params[i].first;
-		auto& bias = m_params[i].second;
+		auto& weights = m_params[i].weights;
+		auto& bias = m_params[i].bias;
 		mat_f_t z = colwise_sum((weights * activation), bias);
 		vec_z.push_back(z);
 		activation = sigmoid(z);
@@ -197,29 +216,24 @@ nabla_t Net::backprop(data_t data)
 	}
 	mat_f_t delta;
 	delta.resizeLike(vec_z.back());
-	delta = cost_derivative(data.second, activations.back()).array() * sigmoid_prime(vec_z.back()).array();
+	delta = cost_derivative(data.second, activations.back());
 	nabla_b.back() = delta;
 	nabla_w.back() = delta * activations[activations.size() - 2].transpose();
 	for (int i = num_layers - 3; i >= 0; i--)
  	{
-		//std::cout << "  *** layer " << i << " ***  \n";
-		auto& weights = m_params[i+1].first;
+		auto& weights = m_params[i+1].weights;
 		mat_f_t z = vec_z[i];
 		mat_f_t sp = sigmoid_prime(z);
-		mat_f_t delta_temp = (weights.transpose() * delta).array() * sp.array();
-		delta = delta_temp;
+		delta = (weights.transpose() * delta).array() * sp.array();
 		nabla_w[i] = delta * activations[i].transpose();
 		nabla_b[i] = delta;
-		//std::cout << "  *** end of layer " << i << " ***  \n";
 	}
 	nabla_t nablas (nabla_w, nabla_b);
-	//std::cout << "***** end of backprop *****" << std::endl;
 	return nablas;
 }
 
-void Net::update_mini_batch(data_t mini_batch, double eta)
+param_t Net::update_mini_batch(data_t mini_batch, double eta)
 {
-	//std::cout << "****** update_mini_batch ******" << std::endl;
 	int num_layers = m_params.size() + 1;
 	int batch_size = mini_batch.first.cols();
 	
@@ -227,44 +241,45 @@ void Net::update_mini_batch(data_t mini_batch, double eta)
 	std::vector<mat_f_t> nabla_b;
 	for (int i = 0; i < num_layers - 1; i++)
 	{
-		auto& weights = m_params[i].first;
-		auto& bias = m_params[i].second;
+		auto& weights = m_params[i].weights;
+		auto& bias = m_params[i].bias;
 		nabla_w.push_back(mat_f_t::Zero(weights.rows(), weights.cols()));
 		nabla_b.push_back(mat_f_t::Zero(bias.rows(), bias.cols()));
 	}
 	
+	float delta_mean_sum = 0;
 	for (int i = 0; i < batch_size; i++)
 	{
 		data_t mini_batch_i (mini_batch.first.col(i), mini_batch.second.col(i));
 		nabla_t delta_nablas = backprop(mini_batch_i);
+		delta_mean_sum += delta_nablas.first[0].array().mean();
 		for (int j = 0; j < num_layers - 1; j++)
 		{
-			//std::cout << "   **** layer: " << j << " ****" << std::endl;
 			mat_f_t delta_nabla_w = delta_nablas.first[j];
 			mat_f_t delta_nabla_b = delta_nablas.second[j];
 			nabla_w[j] += delta_nabla_w;
 			nabla_b[j] += delta_nabla_b;
-			//std::cout << "   **** end of layer: " << j << " ****" << std::endl;
 		}
-	}
+	}	
 	
 	for (int i = 0; i < num_layers - 1; i++)
 	{
-		std::cout << "*** layer: " << i << " ***" << std::endl;
-		//std::cout << nabla_w[i].array().mean() << std::endl;
-		m_params[i].first = m_params[i].first.array() - ( eta / (float)batch_size ) * nabla_w[i].array();
-		m_params[i].second = m_params[i].second.array() - ( eta / (float)batch_size ) * nabla_b[i].array();
-//		std::cout << "*** end of layer: " << i << " ***" << std::endl;
-//		std::cout << std::endl;
+		m_params[i].weights = m_params[i].weights.array() - ( eta / (float)batch_size ) * nabla_w[i].array();
+		m_params[i].bias = m_params[i].bias.array() - ( eta / (float)batch_size ) * nabla_b[i].array();
 	}
-	//std::cout << "****** end of update_mini_batch ******" << std::endl;
-
+	return m_params;
 }
 
-void Net::sgd(data_t training_data, data_t test_data, int num_iters, int batch_size, double eta)
+sgd_t Net::sgd(data_t training_data, data_t test_data, int num_iters, int batch_size, double eta)
 {
-	std::vector<float> error;
-	std::vector<float> cost_vec;
+	std::vector<float> empty_vec = {};
+	report_t reports;
+	reports.emplace("train acc", empty_vec);
+	reports.emplace("train cost", empty_vec);
+	reports.emplace("test acc", empty_vec);
+	reports.emplace("test cost", empty_vec);
+	
+	param_t params;
 	
 	int i = 0;
 	while (i < num_iters)
@@ -272,38 +287,36 @@ void Net::sgd(data_t training_data, data_t test_data, int num_iters, int batch_s
 		std::cout << "Begin epoch: " << i+1 << std::endl;
 		
 		training_data = shuffle_training_data(training_data);
+		//test_data = shuffle_training_data(test_data);
 		
 		auto& input = training_data.first;
 		auto& target_output = training_data.second;
 		int num_samples = input.cols();
-		
-		float err;
-		float cos;
 		
 		for (int j = 0; j < ( num_samples - batch_size ); j += batch_size)
 		{	
 			auto x = input.block( 0, j, input.rows(), batch_size );
 			auto y = target_output.block( 0, j, target_output.rows(), batch_size );
 			data_t mini_batch (x, y);
-			update_mini_batch(mini_batch, eta);
-			mat_f_t prediction = feedforward(x);
-			vec_i_t predicted_classes = output_to_class(prediction);
-			vec_i_t actual_classes = output_to_class(y);
-			cos = cost(y, prediction);
-			cost_vec.push_back(cos);
-			err = class_error(actual_classes, predicted_classes);
-			error.push_back(err);
-			std::cout << "Finished batch: " << j+1 << " acc: " << (float)err << " cost: " << (float)cos << std::endl;
+			params = update_mini_batch(mini_batch, eta);
 		}
-				
 		
+		eval_t train_eval = evaluate(training_data);
+		eval_t test_eval = evaluate(test_data);
+		reports["train acc"].push_back(train_eval.acc);
+		reports["train cost"].push_back(train_eval.cost);
+		reports["test acc"].push_back(test_eval.acc);
+		reports["test cost"].push_back(test_eval.cost);
 		
-		std::cout << "Finished epoch: " << i+1 << " acc: " << (float)err << " cost: " << (float)cos << std::endl;
+		std::cout << "Finished epoch: " << i+1
+					  << " acc: " << train_eval.acc << "% (" << test_eval.acc << "%)"
+					  << " cost: " << (float)train_eval.cost << " (" << test_eval.cost << ")" << std::endl;
 		++i;
 	}
+	return {params, reports};
 }
 
-void Net::plot_graphs(std::map<std::string, std::vector<float>> cost_data)
+void Net::plot_graphs(report_t cost_data)
 {
 	namespace plt = matplotlibcpp;
 	for (auto& cost_pair : cost_data)

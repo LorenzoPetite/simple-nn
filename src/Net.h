@@ -12,8 +12,28 @@ typedef Eigen::MatrixXf mat_f_t;
 typedef Eigen::VectorXf vec_f_t;
 typedef Eigen::VectorXi	vec_i_t;
 typedef std::pair<mat_f_t, mat_f_t> data_t;
-typedef data_t param_t;
 typedef std::pair<std::vector<mat_f_t>, std::vector<mat_f_t>> nabla_t;
+typedef std::map<std::string, std::vector<float>> report_t;
+
+struct lyr_param_t
+{
+    mat_f_t weights;
+    mat_f_t bias;
+};
+
+typedef std::vector<lyr_param_t> param_t;
+
+struct eval_t
+{
+    float cost;
+    float acc;
+};
+
+struct sgd_t
+{
+    param_t params;
+    report_t report;
+};
 
 // **************** class Net ****************
 //
@@ -22,31 +42,31 @@ class Net
 	public:
                 Net(const std::vector<unsigned> topology);
 		const std::vector<unsigned> m_topology;
-                std::vector<param_t> m_params;
+                param_t m_params;
                 
                 std::pair<data_t, data_t> mnist_data_set();
                 mat_f_t sigmoid(mat_f_t);
                 mat_f_t rowwise_sum(mat_f_t, mat_f_t);
                 mat_f_t colwise_sum(mat_f_t, mat_f_t);
                 mat_f_t feedforward(mat_f_t);
-                vec_i_t output_to_class();
 		template<class T> mat_f_t class_to_output(T);
+                vec_i_t output_to_class(mat_f_t);
                 //void set_weights();
 		void train();
                 
-                param_t init_params(long, long, float);
+                lyr_param_t init_lyr_params(long, long, float);
+                param_t init_params();
                 data_t shuffle_training_data(data_t);
 		float cross_entropy(float, float);
                 mat_f_t sigmoid_prime(mat_f_t);
                 mat_f_t cost_derivative(mat_f_t, mat_f_t);
-		float class_error();
-		void plot_graphs(std::map<std::string, std::vector<float>>);
-		void sgd(data_t, data_t, int, int, double);
-                vec_i_t output_to_class(mat_f_t);
+                eval_t evaluate(data_t);
+                float cost(mat_f_t, mat_f_t);
                 float class_error(vec_i_t, vec_i_t);
+		void plot_graphs(std::map<std::string, std::vector<float>>);
                 nabla_t backprop(data_t);
-		void update_mini_batch(data_t, double);
-		float cost(mat_f_t, mat_f_t);
+		param_t update_mini_batch(data_t, double);
+                sgd_t sgd(data_t, data_t, int, int, double);
 };
 
 

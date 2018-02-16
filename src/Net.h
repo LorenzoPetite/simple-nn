@@ -11,22 +11,33 @@
 typedef Eigen::MatrixXf mat_f_t;
 typedef Eigen::VectorXf vec_f_t;
 typedef Eigen::VectorXi	vec_i_t;
-typedef std::pair<mat_f_t, mat_f_t> data_t;
-typedef std::pair<std::vector<mat_f_t>, std::vector<mat_f_t>> nabla_t;
 typedef std::map<std::string, std::vector<float>> report_t;
 
-struct lyr_param_t
+struct single_data_t
+{
+    mat_f_t input;
+    mat_f_t output;
+};
+
+struct data_t
+{
+    single_data_t train;
+    single_data_t test;
+};
+
+struct layer_param_t
 {
     mat_f_t weights;
     mat_f_t bias;
 };
 
-typedef std::vector<lyr_param_t> param_t;
+typedef std::vector<layer_param_t> param_t;
 
 struct eval_t
 {
     float cost;
-    float acc;
+    float accuracy;
+    float error;
 };
 
 struct sgd_t
@@ -44,7 +55,7 @@ class Net
 		const std::vector<unsigned> m_topology;
                 param_t m_params;
                 
-                std::pair<data_t, data_t> mnist_data_set();
+                data_t mnist_data_set();
                 mat_f_t sigmoid(mat_f_t);
                 mat_f_t rowwise_sum(mat_f_t, mat_f_t);
                 mat_f_t colwise_sum(mat_f_t, mat_f_t);
@@ -54,19 +65,24 @@ class Net
                 //void set_weights();
 		void train();
                 
-                lyr_param_t init_lyr_params(long, long, float);
+                layer_param_t init_layer_params(long, long, float);
                 param_t init_params();
-                data_t shuffle_training_data(data_t);
+                single_data_t shuffle_training_data(single_data_t);
 		float cross_entropy(float, float);
                 mat_f_t sigmoid_prime(mat_f_t);
                 mat_f_t cost_derivative(mat_f_t, mat_f_t);
-                eval_t evaluate(data_t);
+                eval_t evaluate(single_data_t);
                 float cost(mat_f_t, mat_f_t);
                 float class_error(vec_i_t, vec_i_t);
 		void plot_graphs(std::map<std::string, std::vector<float>>);
-                nabla_t backprop(data_t);
-		param_t update_mini_batch(data_t, double);
-                sgd_t sgd(data_t, data_t, int, int, double);
+                param_t backprop(single_data_t);
+		param_t update_mini_batch(single_data_t, float);
+                sgd_t sgd(data_t, int, int, float, bool);
+                
+//                void write_matrix_to_csv(mat_f_t matrix, std::string file);
+//                void save_params_to_csv(param_t params, std::string path);
+//                param_t load_matrix_from_csv(std::string);
+//                param_t load_params_from_csv(std::string path);
 };
 
 

@@ -18,6 +18,8 @@
           </df>
           <df name="CMakeTmp">
           </df>
+          <df name="matio.dir">
+          </df>
           <df name="Progress">
           </df>
           <df name="train.dir">
@@ -38,6 +40,12 @@
         <df name="test">
           <df name="CMakeFiles">
             <df name="Net_test.dir">
+            </df>
+          </df>
+        </df>
+        <df name="thirdparty">
+          <df name="eigen-matio">
+            <df name="CMakeFiles">
             </df>
           </df>
         </df>
@@ -2256,6 +2264,72 @@
               <in>sparse_extra.cpp</in>
               <in>special_functions.cpp</in>
               <in>splines.cpp</in>
+            </df>
+          </df>
+        </df>
+        <df name="eigen-matio">
+          <df name="cmake">
+          </df>
+          <df name="tests">
+          </df>
+          <in>MATio</in>
+        </df>
+        <df name="matio">
+          <df name="cmake">
+            <in>CheckHeaderSTDC.c</in>
+            <in>HDF5Version.c</in>
+          </df>
+          <df name="documentation">
+          </df>
+          <df name="getopt">
+            <in>getopt.h</in>
+            <in>getopt_long.c</in>
+          </df>
+          <df name="patches">
+          </df>
+          <df name="share">
+          </df>
+          <df name="src">
+            <df name="fortran">
+              <in>create.f90</in>
+              <in>matio.f90</in>
+              <in>matio_internal.c</in>
+              <in>read_data.f90</in>
+              <in>write.f90</in>
+              <in>write_data.f90</in>
+            </df>
+            <in>endian.c</in>
+            <in>inflate.c</in>
+            <in>io.c</in>
+            <in>mat.c</in>
+            <in>mat4.c</in>
+            <in>mat4.h</in>
+            <in>mat5.c</in>
+            <in>mat5.h</in>
+            <in>mat73.c</in>
+            <in>mat73.h</in>
+            <in>matio.h</in>
+            <in>matio_private.h</in>
+            <in>matvar_cell.c</in>
+            <in>matvar_struct.c</in>
+            <in>read_data.c</in>
+            <in>snprintf.c</in>
+          </df>
+          <df name="test">
+            <df name="datasets">
+            </df>
+            <in>mat2hdf.c</in>
+            <in>test_mat.c</in>
+            <in>test_matf.f90</in>
+            <in>test_snprintf.c</in>
+          </df>
+          <df name="tools">
+            <in>matdump.c</in>
+          </df>
+          <df name="visual_studio">
+            <df name="libmatio">
+            </df>
+            <df name="matdump">
             </df>
           </df>
         </df>

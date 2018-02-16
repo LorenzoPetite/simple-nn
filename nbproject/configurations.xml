@@ -41,8 +41,7 @@
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
       <flagsDictionary>
-        <element flagsID="0"
-                 commonFlags="-mtune=generic -march=x86-64 -fPIC -fstack-protector-strong"/>
+        <element flagsID="0" commonFlags="-fPIC"/>
         <element flagsID="1"
                  commonFlags="-mtune=generic -march=x86-64 -fstack-protector-strong"/>
         <element flagsID="2" commonFlags="-std=c++14"/>
@@ -62,6 +61,19 @@
           <preBuildCommand>${CMAKE} -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=${IDE_CC} -DCMAKE_CXX_COMPILER=${IDE_CXX} -DCMAKE_C_FLAGS_DEBUG="-g3 -gdwarf-2" -DCMAKE_CXX_FLAGS_DEBUG="-g3 -gdwarf-2" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..</preBuildCommand>
         </preBuild>
       </makefileType>
+      <folder path="0/src">
+        <ccTool>
+          <incDir>
+            <pElem>/usr/local/include/eigen</pElem>
+            <pElem>thirdparty/matploplibcpp</pElem>
+            <pElem>/usr/include/python2.7</pElem>
+            <pElem>thirdparty/mnist/include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>MNIST_DATA_LOCATION="/home/laurence/university/programmingI/final_assignment/oo_neural_net/thirdparty/mnist"</Elem>
+          </preprocessorList>
+        </ccTool>
+      </folder>
       <folder path="0/test">
         <ccTool>
           <incDir>
@@ -113,56 +125,22 @@
       <item path="src/Net.cpp" ex="false" tool="1" flavor2="11">
         <ccTool flags="0">
           <incDir>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/util</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/arch/SSE</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/products</pElem>
-            <pElem>src</pElem>
-            <pElem>/usr/include/python2.7/numpy</pElem>
-            <pElem>thirdparty/matploplibcpp</pElem>
-            <pElem>thirdparty/mnist/include/mnist</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/plugins</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/functors</pElem>
-            <pElem>/usr/local/include/eigen/Eigen</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Core/arch/CUDA</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/SVD</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Geometry</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/LU</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Cholesky</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/QR</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Householder</pElem>
-            <pElem>/usr/local/include/eigen/Eigen/src/Eigenvalues</pElem>
-            <pElem>/usr/include/python2.7</pElem>
-            <pElem>thirdparty/mnist/include</pElem>
             <pElem>build/src</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>Net_EXPORTS</Elem>
+          </preprocessorList>
         </ccTool>
       </item>
       <item path="src/newfile.cpp" ex="false" tool="1" flavor2="11">
         <ccTool flags="2">
-          <incDir>
-            <pElem>/usr/local/include/eigen</pElem>
-            <pElem>thirdparty/matploplibcpp</pElem>
-            <pElem>/usr/include/python2.7</pElem>
-            <pElem>thirdparty/mnist/include</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>MNIST_DATA_LOCATION="/home/laurence/university/programmingI/final_assignment/oo_neural_net/thirdparty/mnist"</Elem>
-          </preprocessorList>
         </ccTool>
       </item>
       <item path="src/train.cpp" ex="false" tool="1" flavor2="11">
         <ccTool flags="3">
           <incDir>
-            <pElem>/usr/local/include/eigen</pElem>
-            <pElem>thirdparty/matploplibcpp</pElem>
-            <pElem>/usr/include/python2.7</pElem>
-            <pElem>thirdparty/mnist/include</pElem>
             <pElem>build</pElem>
           </incDir>
-          <preprocessorList>
-            <Elem>MNIST_DATA_LOCATION="/home/laurence/university/programmingI/final_assignment/oo_neural_net/thirdparty/mnist"</Elem>
-          </preprocessorList>
         </ccTool>
       </item>
       <item path="test/Net_test.cpp" ex="false" tool="1" flavor2="11">

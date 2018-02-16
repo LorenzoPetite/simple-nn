@@ -1,3 +1,9 @@
 [submodule "thirdparty/mnist"]
 	path = thirdparty/mnist
 	url = https://github.com/wichtounet/mnist.git
+[submodule "thirdparty/eigen-matio"]
+	path = thirdparty/eigen-matio
+	url = git@github.com:tesch1/eigen-matio.git
+[submodule "thirdparty/matio"]
+	path = thirdparty/matio
+	url = git@github.com:willyd/matio.git

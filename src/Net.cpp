@@ -25,52 +25,40 @@ mat_f_t Net::class_to_output(T vec_class)
 	return result;
 }
 
-std::pair<data_t, data_t> Net::mnist_data_set()
+data_t Net::mnist_data_set()
 {
 	// Load MNIST data
 	mnist::MNIST_dataset<std::vector, std::vector<float>, uint8_t> dataset =
         mnist::read_dataset<std::vector, std::vector, float, uint8_t>(MNIST_DATA_LOCATION);
 	
-	mat_f_t raw_images;
 	auto& v = dataset.training_images;
-//	v = dataset.training_images;
-//	raw_images.resize(v[0].size(), v.size());
-//	for (int i = 0; i < v.size(); i++)
-//		for (int j = 0; j < v[i].size(); j++)
-//			raw_images(j, i) = v[i][j];
-//	
-//	std::cout << raw_images.array().mean() << std::endl;
-//	std::cout << raw_images.maxCoeff() << std::endl;
 
 	normalize_dataset(dataset);
 	
-	data_t training_data;
-	data_t test_data;
+	single_data_t training_data;
+	single_data_t test_data;
 	
-	training_data.second = class_to_output(dataset.training_labels);
-	test_data.second = class_to_output(dataset.test_labels);
+	training_data.output = class_to_output(dataset.training_labels);
+	test_data.output = class_to_output(dataset.test_labels);
 	
 	v = dataset.training_images;
-	training_data.first.resize(v[0].size(), v.size());
+	training_data.input.resize(v[0].size(), v.size());
 	for (int i = 0; i < v.size(); i++)
 		for (int j = 0; j < v[i].size(); j++)
-			training_data.first(j, i) = v[i][j];
-	
-	std::cout << training_data.first.array().mean() << std::endl;
-	std::cout << training_data.first.maxCoeff() << std::endl;
-
+			training_data.input(j, i) = v[i][j];
 
 	v = dataset.test_images;
-	test_data.first.resize(v[0].size(), v.size());
+	test_data.input.resize(v[0].size(), v.size());
 	for (int i = 0; i < v.size(); i++)
 		for (int j = 0; j < v[i].size(); j++)
-			test_data.first(j, i) = v[i][j];
-	std::pair<data_t, data_t> mnist_dataset (training_data, test_data);
+			test_data.input(j, i) = v[i][j];
+	data_t mnist_dataset {training_data, test_data};
 	return mnist_dataset;
 	
 }
 
-lyr_param_t Net::init_lyr_params(long rows, long cols, float bound)
+// using a uniform distribution in [-1. 1] randomly initialise paramaters for a single layer
+layer_param_t Net::init_layer_params(long rows, long cols, float bound)
 {
 	//std::srand((int)time(0));
 	//std::srand(0);
@@ -81,24 +69,22 @@ lyr_param_t Net::init_lyr_params(long rows, long cols, float bound)
 	return {weights, bias};
 }
 
+// using a uniform distribution in [-1. 1] randomly initialise paramaters for all layers of network
 param_t Net::init_params()
 {
 	for (unsigned i = 0; i < m_topology.size() - 1; i++)
-		m_params.push_back( init_lyr_params(m_topology[i + 1], m_topology[i], 0.1) );
+		m_params.push_back( init_layer_params(m_topology[i + 1], m_topology[i], 0.1) );
 	return m_params;
 }
 
-data_t Net::shuffle_training_data(data_t data)
+single_data_t Net::shuffle_training_data(single_data_t data)
 {
-	int num_samples = data.first.cols();
+	int num_samples = data.input.cols();
 	// choose random sample of imputs
 	Eigen::PermutationMatrix<Eigen::Dynamic,Eigen::Dynamic> perm(num_samples);
 	perm.setIdentity();
 	std::random_shuffle(perm.indices().data(), perm.indices().data()+perm.indices().size());
-	data_t res;
-	res.first = (data.first * perm);
-	res.second = (data.second * perm);
-	return res;
+	return {(data.input * perm), (data.output * perm)};
 }
 
 mat_f_t Net::sigmoid(mat_f_t z)
@@ -132,18 +118,19 @@ mat_f_t Net::feedforward(mat_f_t activation)
 	{
 		auto weights = m_params[i].weights;
 		auto bias = m_params[i].bias;
-		auto z_nobias = weights * activation;
-		auto z = colwise_sum( z_nobias,  bias);
+		auto z = colwise_sum( weights * activation,  bias);
 		activation = sigmoid(z);
 	}
 	return activation;
 }
 
+// mean squared error
 float Net::cost(mat_f_t target_output, mat_f_t output)
 {
 	return (float)((target_output - output).array().square().sum()) / (float)output.cols();
 }
 
+// mean squared error derivative
 mat_f_t Net::cost_derivative(mat_f_t target_output, mat_f_t output)
 {
 	return output - target_output;
@@ -164,44 +151,48 @@ vec_i_t Net::output_to_class(mat_f_t o)
 	return c;
 }
 
+// returns proportion of rows of actual_classes != rows of predicted_classes
 float Net::class_error(vec_i_t actual_classes, vec_i_t predicted_classes)
 {	
 	int rows = predicted_classes.rows(); int cols = predicted_classes.cols();
 	int sum = 0;
-	// compares column by column
 	for (int i = 0; i < rows; i++)
 		if ( predicted_classes.row(i) != actual_classes.row(i) )
 			sum++;
 	return (float)sum / (float)rows;
 }
 
-eval_t Net::evaluate(data_t data)
+// runs feedforward on a dataset and calculates cost and accuracy
+eval_t Net::evaluate(single_data_t data)
 {
-	auto& x = data.first;
-	auto& y = data.second;
+	auto& x = data.input;
+	auto& y = data.output;
 	mat_f_t prediction = feedforward(x);
 	vec_i_t predicted_classes = output_to_class(prediction);
 	vec_i_t actual_classes = output_to_class(y);
 	float cos = cost(y, prediction);
-	float err = class_error(actual_classes, predicted_classes);
-	float acc = (1.0 - err) * 100;
-	return {cos, acc};
+	float error = class_error(actual_classes, predicted_classes);
+	float accuracy = (1.0 - error) * 100;
+	return {cos, accuracy, error};
 }
 
-nabla_t Net::backprop(data_t data)
+// calculate partial derivatives of cost function with respect to weights and bias for all layers
+// of the network using backpropogation algorithm.
+param_t Net::backprop(single_data_t data)
 {
-	//std::cout << "***** backprop *****" << std::endl;
-	std::vector<mat_f_t> nabla_w;
-	std::vector<mat_f_t> nabla_b;
+	param_t nabla;
 	int num_layers = m_params.size() + 1;
 	for (int i = 0; i < num_layers - 1; i++)
 	{
-		auto& weights = m_params[i].weights;
-		auto& bias = m_params[i].bias;
-		nabla_w.push_back(mat_f_t::Zero(weights.rows(), weights.cols()));
-		nabla_b.push_back(mat_f_t::Zero(bias.rows(), bias.cols()));
+		auto& w = m_params[i].weights;
+		auto& b = m_params[i].bias;
+		layer_param_t layer_nabla_zero {
+			mat_f_t::Zero(w.rows(), w.cols()),
+			mat_f_t::Zero(b.rows(), b.cols())
+		};
+		nabla.push_back(layer_nabla_zero);
 	}
-	mat_f_t activation = data.first;
+	mat_f_t activation = data.input;
 	std::vector<mat_f_t> activations;
 	activations.push_back(activation);
 	std::vector<mat_f_t> vec_z;
@@ -214,69 +205,68 @@ nabla_t Net::backprop(data_t data)
 		activation = sigmoid(z);
 		activations.push_back(activation);
 	}
-	mat_f_t delta;
-	delta.resizeLike(vec_z.back());
-	delta = cost_derivative(data.second, activations.back());
-	nabla_b.back() = delta;
-	nabla_w.back() = delta * activations[activations.size() - 2].transpose();
+	mat_f_t	delta = cost_derivative(data.output, activations.back());
+	nabla.back().weights = delta;
+	nabla.back().weights = delta * activations[activations.size() - 2].transpose();
 	for (int i = num_layers - 3; i >= 0; i--)
  	{
 		auto& weights = m_params[i+1].weights;
 		mat_f_t z = vec_z[i];
 		mat_f_t sp = sigmoid_prime(z);
 		delta = (weights.transpose() * delta).array() * sp.array();
-		nabla_w[i] = delta * activations[i].transpose();
-		nabla_b[i] = delta;
+		nabla[i].weights = delta * activations[i].transpose();
+		nabla[i].bias = delta;
 	}
-	nabla_t nablas (nabla_w, nabla_b);
-	return nablas;
+	return nabla;
 }
 
-param_t Net::update_mini_batch(data_t mini_batch, double eta)
+// runs backpropogation to calculate gradients and uses result to update the
+// parameters of the network
+param_t Net::update_mini_batch(single_data_t mini_batch, float eta)
 {
 	int num_layers = m_params.size() + 1;
-	int batch_size = mini_batch.first.cols();
+	int batch_size = mini_batch.input.cols();
 	
-	std::vector<mat_f_t> nabla_w;
-	std::vector<mat_f_t> nabla_b;
+	param_t nabla;
 	for (int i = 0; i < num_layers - 1; i++)
 	{
-		auto& weights = m_params[i].weights;
-		auto& bias = m_params[i].bias;
-		nabla_w.push_back(mat_f_t::Zero(weights.rows(), weights.cols()));
-		nabla_b.push_back(mat_f_t::Zero(bias.rows(), bias.cols()));
+		auto& w = m_params[i].weights;
+		auto& b = m_params[i].bias;
+		layer_param_t layer_nabla_zero {
+			mat_f_t::Zero(w.rows(), w.cols()),
+			mat_f_t::Zero(b.rows(), b.cols())
+		};
+		nabla.push_back(layer_nabla_zero);
 	}
 	
-	float delta_mean_sum = 0;
 	for (int i = 0; i < batch_size; i++)
 	{
-		data_t mini_batch_i (mini_batch.first.col(i), mini_batch.second.col(i));
-		nabla_t delta_nablas = backprop(mini_batch_i);
-		delta_mean_sum += delta_nablas.first[0].array().mean();
+		single_data_t mini_batch_i {mini_batch.input.col(i), mini_batch.output.col(i)};
+		param_t delta_nabla = backprop(mini_batch_i);
 		for (int j = 0; j < num_layers - 1; j++)
 		{
-			mat_f_t delta_nabla_w = delta_nablas.first[j];
-			mat_f_t delta_nabla_b = delta_nablas.second[j];
-			nabla_w[j] += delta_nabla_w;
-			nabla_b[j] += delta_nabla_b;
+			nabla[j].weights += delta_nabla[j].weights;
+			nabla[j].bias += delta_nabla[j].bias;
 		}
 	}	
 	
 	for (int i = 0; i < num_layers - 1; i++)
 	{
-		m_params[i].weights = m_params[i].weights.array() - ( eta / (float)batch_size ) * nabla_w[i].array();
-		m_params[i].bias = m_params[i].bias.array() - ( eta / (float)batch_size ) * nabla_b[i].array();
+		m_params[i].weights = m_params[i].weights.array() - ( eta / (float)batch_size ) * nabla[i].weights.array();
+		m_params[i].bias = m_params[i].bias.array() - ( eta / (float)batch_size ) * nabla[i].bias.array();
 	}
 	return m_params;
 }
 
-sgd_t Net::sgd(data_t training_data, data_t test_data, int num_iters, int batch_size, double eta)
+
+// runs stochastic gradient descent (sgd) algorithm
+sgd_t Net::sgd(data_t data, int num_iters, int batch_size, float eta, bool cross_validation)
 {
 	std::vector<float> empty_vec = {};
 	report_t reports;
-	reports.emplace("train acc", empty_vec);
+	reports.emplace("train error", empty_vec);
 	reports.emplace("train cost", empty_vec);
-	reports.emplace("test acc", empty_vec);
+	reports.emplace("test error", empty_vec);
 	reports.emplace("test cost", empty_vec);
 	
 	param_t params;
@@ -286,31 +276,37 @@ sgd_t Net::sgd(data_t training_data, data_t test_data, int num_iters, int batch_
 	{
 		std::cout << "Begin epoch: " << i+1 << std::endl;
 		
-		training_data = shuffle_training_data(training_data);
-		//test_data = shuffle_training_data(test_data);
+		data.train = shuffle_training_data(data.train);
+		//data.test = shuffle_training_data(data.test);
 		
-		auto& input = training_data.first;
-		auto& target_output = training_data.second;
-		int num_samples = input.cols();
+		int num_samples = data.train.input.cols();
 		
 		for (int j = 0; j < ( num_samples - batch_size ); j += batch_size)
 		{	
-			auto x = input.block( 0, j, input.rows(), batch_size );
-			auto y = target_output.block( 0, j, target_output.rows(), batch_size );
-			data_t mini_batch (x, y);
+			auto x = data.train.input.block( 0, j, data.train.input.rows(), batch_size );
+			auto y = data.train.output.block( 0, j, data.train.output.rows(), batch_size );
+			single_data_t mini_batch {x, y};
 			params = update_mini_batch(mini_batch, eta);
 		}
 		
-		eval_t train_eval = evaluate(training_data);
-		eval_t test_eval = evaluate(test_data);
-		reports["train acc"].push_back(train_eval.acc);
+		eval_t train_eval = evaluate(data.train);
+		reports["train error"].push_back(train_eval.error);
 		reports["train cost"].push_back(train_eval.cost);
-		reports["test acc"].push_back(test_eval.acc);
-		reports["test cost"].push_back(test_eval.cost);
 		
-		std::cout << "Finished epoch: " << i+1
-					  << " acc: " << train_eval.acc << "% (" << test_eval.acc << "%)"
+		if (cross_validation)
+		{
+			eval_t test_eval = evaluate(data.test);
+			reports["test error"].push_back(test_eval.error);
+			reports["test cost"].push_back(test_eval.cost);
+			std::cout << "Finished epoch: " << i+1
+					  << " accuracy: " << train_eval.accuracy << "% (" << test_eval.accuracy << "%)"
 					  << " cost: " << (float)train_eval.cost << " (" << test_eval.cost << ")" << std::endl;
+		} else
+		{
+			std::cout << "Finished epoch: " << i+1
+					  << " accuracy: " << train_eval.accuracy << "% "
+					  << " cost: " << (float)train_eval.cost << std::endl;
+		}
 		++i;
 	}
 	return {params, reports};
@@ -319,12 +315,20 @@ sgd_t Net::sgd(data_t training_data, data_t test_data, int num_iters, int batch_
 void Net::plot_graphs(report_t cost_data)
 {
 	namespace plt = matplotlibcpp;
+	int max_epoch_size = 5;
+	int total_max_error = 1;
 	for (auto& cost_pair : cost_data)
 	{
 		plt::named_plot(cost_pair.first, cost_pair.second);
+		int epoch_size = cost_pair.second.size();
+		if (epoch_size > max_epoch_size) { max_epoch_size = epoch_size; }
+		std::vector<float>::iterator max_error_position;
+		max_error_position = std::max_element(cost_pair.second.begin(), cost_pair.second.end());
+		int max_error = *max_error_position;
+		if (max_error > total_max_error) { total_max_error = max_error; }
 	}
-	plt::xlim(0, 150);
-	plt::ylim(0,5);
+	plt::xlim(0, max_epoch_size);
+	plt::ylim(0, total_max_error);
 	plt::xlabel("Epoch");
 	plt::ylabel("Error");
 	plt::legend();

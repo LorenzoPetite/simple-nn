@@ -3,6 +3,7 @@
 #include <iostream>
 #include <istream>
 #include <string>
+//#include "MATio"
 
 int main()
 {
@@ -16,13 +17,12 @@ int main()
 	
 	auto params = net.init_params();
 	
-	auto& training_data = data.first;
-	auto& test_data = data.second;
 	int epochs = 10;
 	int batch_size = 128;
-	double learning_rate = 0.5;
+	float learning_rate = 0.5;
+	bool cross_validation = true;
 	
-	sgd_t sgd_res = net.sgd(training_data, test_data, epochs, batch_size, learning_rate);
+	sgd_t sgd_res = net.sgd(data, epochs, batch_size, learning_rate, cross_validation);
 	
 	net.plot_graphs(sgd_res.report);
 	

@@ -71,7 +71,7 @@ auto params = net.init_params();
 ```
 int epochs = 10;
 int batch_size = 128;
-double learning_rate = 0.5;
+float learning_rate = 0.5;
 bool cross_validation = true;
 ```
 ##### 6. Run Stochastic Gradient Descent on the network

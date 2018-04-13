@@ -1,6 +1,6 @@
-# MNIST Neural Net
+# C++ Neural Net
 
-A fully connected feedforward multi-layer neural network using backpropogation to learn, for example, the MNIST dataset.
+A fully connected feedforward multi-layer neural network using the backpropogation algorithm to learn, for example, to recognise handwritten digits to an accuracy of 98%.
 
 The Net::sgd() function runs stochastic gradient descent to minimise the Mean Squared Error cost function:
 

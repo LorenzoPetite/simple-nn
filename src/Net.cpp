@@ -77,6 +77,38 @@ param_t Net::init_params()
 	return m_params;
 }
 
+void Net::write_matrix_to_csv(mat_f_t matrix, std::string file_name)
+{
+	const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+	std::ofstream file(file_name);
+	file << matrix.format(CSVFormat);
+}
+
+void Net::save_params_to_csv(param_t params, std::string path)
+{
+	std::ofstream file(path + "params.list");
+	for (int i = 0; i < params.size(); i++)
+	{
+		write_matrix_to_csv(params[i].weights, path + "/" + std::to_string(i) + "_weights.mat" );
+		write_matrix_to_csv(params[i].bias, path + "/" + std::to_string(i) + "_bias.mat" );
+		file << path + "/" + std::to_string(i) + "_weights.mat\n"
+		     << path + "/" + std::to_string(i) + "_bias.mat\n";
+	}
+	
+}
+
+param_t Net::load_matrix_from_csv(std::string file)
+{
+	const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+	std::ofstream file(file_name);
+	matrix.format(CSVFormat) << file;
+}
+
+param_t Net::load_params_from_csv(std::string path)
+{
+	
+}
+
 single_data_t Net::shuffle_training_data(single_data_t data)
 {
 	int num_samples = data.input.cols();

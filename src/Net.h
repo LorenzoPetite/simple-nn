@@ -79,10 +79,10 @@ class Net
 		param_t update_mini_batch(single_data_t, float);
                 sgd_t sgd(data_t, int, int, float, bool);
                 
-//                void write_matrix_to_csv(mat_f_t matrix, std::string file);
-//                void save_params_to_csv(param_t params, std::string path);
-//                param_t load_matrix_from_csv(std::string);
-//                param_t load_params_from_csv(std::string path);
+                void write_matrix_to_csv(mat_f_t matrix, std::string file);
+                void save_params_to_csv(param_t params, std::string path);
+                param_t load_matrix_from_csv(std::string);
+                param_t load_params_from_csv(std::string path);
 };
 
 
